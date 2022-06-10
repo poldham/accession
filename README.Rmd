@@ -1,13 +1,16 @@
 ---
-title: "Creating an Accession Model"
-output: html_document
-author: "Paul Oldham"
-date: '2022-05-20'
+output: github_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
 ```
+
 
 ## Introduction
 
@@ -150,7 +153,7 @@ large <- get_entities(path = "assets/accession_ref_all_id.csv", model = "en_acce
 
 Read the dataset back in and count up the results for the labels.
 
-```{r setupcounts, eval=FALSE, echo=FALSE}
+```{r setupcounts, eval=FALSE, echo=FALSE, , message=FALSE}
 large <- read_csv("results/accession_ref_all_id_results.csv")
 
 large_count <- large %>% 
@@ -191,7 +194,7 @@ read_csv("data/large_count.csv") %>%
 
 Inspect the ORG label.
 
-```{r, largeorg, cache=FALSE}
+```{r, largeorg, cache=FALSE, message=FALSE}
 read_csv("data/large_org.csv") %>% 
   head(., 30) %>% 
   knitr::kable()
@@ -199,7 +202,7 @@ read_csv("data/large_org.csv") %>%
 
 Inspect the ACCESSION label.
 
-```{r, largeaccession}
+```{r, largeaccession, message=FALSE}
 read_csv("data/large_accesion.csv") %>% 
   head(., 30) %>% 
   knitr::kable()
@@ -212,3 +215,8 @@ read_csv("data/large_accesion.csv") %>%
   head(., 30) %>% 
   knitr::kable()
 ```
+
+
+## Step 3: Identify Noise, Make Corrections and Repackage
+
+TBD
