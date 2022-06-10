@@ -1,0 +1,135 @@
+title: "Detecting Accession numbers in Patent texts"
+description: "This project uses [`sense2vec`](https://github.com/explosion/sense2vec) and [Prodigy](https://prodi.gy) to bootstrap an NER model to detect fashion brands in [Reddit comments](https://files.pushshift.io/reddit/comments/). For more details, see [our blog post](https://explosion.ai/blog/sense2vec-reloaded#annotation)."
+# Variables can be referenced across the project.yml using ${vars.var_name}
+vars:
+  config: "config.cfg"
+  name: "accession"
+  version: "0.0.0"
+  train: "train"
+  dev: "dev"
+  ruler: "ruler"
+  patterns: "ena_patterns"
+
+# These are the directories that the project needs. The project CLI will make
+# sure that they always exist.
+directories: ["assets", "training", "configs", "scripts", "corpus", "packages", "models"]
+
+# Assets that should be downloaded or available in the directory. We're shipping
+# them with the project, so they won't have to be downloaded. But the
+# 'project assets' command still lets you verify that the checksums match.
+assets:
+  - dest: "assets/${vars.train}.jsonl"
+    checksum: "63373dd656daa1fd3043ce166a59474c"
+    description: "Not uses in this project"
+  - dest: "assets/${vars.dev}.jsonl"
+    checksum: "5113dc04e03f079525edd8df3f4f39e3"
+    description: "Not used in this project"
+  # Patterns are not used for training but we distribute them for reference
+  - dest: "assets/${vars.patterns}.jsonl"
+    checksum: "4070316032ce36a01b7d1e8ecb387a8b"
+    description: "See individual jsonl files in assets"
+
+# Workflows are sequences of commands (see below) executed in order. You can
+# run them via "spacy project run [workflow]". If a commands's inputs/outputs
+# haven't changed, it won't be re-run.
+workflows:
+  all:
+    - preprocess
+    - train
+    - train_curve
+    - entity_ruler
+    - ruler
+    - evaluate
+    - evaluate_ruler
+    - package 
+
+# Project commands, specified in a style similar to CI config files (e.g. Azure
+# pipelines). The name is the command name that lets you trigger the command
+# via "spacy project run [command] [path]". The help message is optional and
+# shown when executing "spacy project run [optional command] [path] --help".
+commands:
+  - name: "preprocess"
+    help: "Convert the data to spaCy's binary format"
+    script:
+      - "python scripts/preprocess.py assets/${vars.train}.jsonl corpus/${vars.train}.spacy"
+      - "python scripts/preprocess.py assets/${vars.dev}.jsonl corpus/${vars.dev}.spacy"
+    deps:
+      - "assets/${vars.train}.jsonl"
+      - "assets/${vars.dev}.jsonl"
+      - "scripts/preprocess.py"
+    outputs:
+      - "corpus/${vars.train}.spacy"
+      - "corpus/${vars.dev}.spacy"
+
+  - name: "train"
+    help: "Train a named entity recognition model"
+    script:
+      - "python -m spacy train configs/${vars.config} --output training/ --paths.train corpus/${vars.train}.spacy --paths.dev corpus/${vars.dev}.spacy"
+    deps:
+      - "corpus/${vars.train}.spacy"
+      - "corpus/${vars.dev}.spacy"
+    outputs:
+      - "training/model-best"
+
+  - name: "evaluate"
+    help: "Evaluate the model and export metrics"
+    script:
+      - "python -m spacy evaluate training/model-best corpus/${vars.dev}.spacy --output training/metrics.json"
+    deps:
+      - "corpus/${vars.dev}.spacy"
+      - "training/model-best"
+    outputs:
+      - "training/metrics.json"
+      
+# add entity ruler to the model
+# the addition of the entity ruler is controlled by entity_ruler.py. Edit that file to
+# change the pattern set.
+  - name: "entity_ruler"
+    help: "Add pattern-based entity ruler"
+    script:
+      -  python scripts/entity_ruler.py
+      
+  - name: ruler
+    help: "add entity ruler added to the model"
+    script:
+      - "python -m spacy package models/entity_ruler packages --name ${vars.name}_${vars.ruler} --version ${vars.version} --force"
+    deps:
+      - "models/entity_ruler"
+    outputs_no_cache:
+      - "models/{vars.name}_${vars.ruler}-${vars.version}/dist/en_${vars.name}_${vars.ruler}-${vars.version}.tar.gz"      
+      
+  - name: "evaluate_ruler"
+    help: "Evaluate the model with a ruler and export metrics"
+    script:
+      - "python -m spacy evaluate models/entity_ruler corpus/${vars.dev}.spacy --output training/metrics.json"
+    deps:
+      - "corpus/${vars.dev}.spacy"
+      - "models/entity_ruler"
+    outputs:
+      - "models/metrics.json"    
+      
+  - name: package
+    help: "Package the trained model so it can be installed"
+    script:
+      - "python -m spacy package training/model-best packages --name ${vars.name} --version ${vars.version} --force"
+    deps:
+      - "training/model-best"
+    outputs_no_cache:
+      - "packages/en_${vars.name}-${vars.version}/dist/en_${vars.name}-${vars.version}.tar.gz"
+
+  - name: visualize-model
+    help: Visualize the model's output interactively using Streamlit
+    script:
+      - "streamlit run scripts/visualize_model.py training/model-best \"I like ENA accession numbers and SEQs.\""
+    deps:
+      - "scripts/visualize_model.py"
+      - "training/model-best"
+
+  - name: "visualize-data"
+    help: "Explore the annotated data in an interactive Streamlit app"
+    script:
+      - "streamlit run scripts/visualize_data.py assets/${vars.train}.jsonl,assets/${vars.dev}.jsonl"
+    deps:
+      - "scripts/visualize_data.py"
+      - "assets/${vars.train}.jsonl"
+      - "assets/${vars.dev}.jsonl"
