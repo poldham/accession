@@ -146,7 +146,7 @@ corpus of train (70%) and eval (30%).
 prodigy data-to-spaCy corpus --ner accession_usptorefs,accession_sent_nchar2000rerun --eval-split 0.3 
 
 # set up the corpus in the project (writes to train and dev for eval)
-python -m spaCy train corpus/config.cfg --paths.train corpus/train.spaCy --paths.dev corpus/dev.spaCy
+python -m spacy train corpus/config.cfg --paths.train corpus/train.spaCy --paths.dev corpus/dev.spaCy
 ```
 
 <!---# (spaCyr) pauloldham@PAULs-iMac accession % python -m spaCy train corpus/config.cfg --paths.train corpus/train.spaCy --paths.dev corpus/dev.spaCy--->
@@ -156,12 +156,12 @@ containing commands for training, adding an entity ruler and packaging a
 model as a pip installable.
 
 ``` bash
-spaCy project run train
+spacy project run train
 ```
 
 The performance of the model over ten iterations is displayed in Figure
-@ref(fig:step1) below. The scores of interest are recall ENTS_R and
-precision ENTS_P and the F score (ENTS_F) consisting of the harmonic
+@ref(fig:step1) below. The scores of interest are recall `ENTS_R` and
+precision `ENTS_P` and the F score (`ENTS_F`) consisting of the harmonic
 mean between precision and recall to evaluate the overall performance of
 the model.
 
@@ -177,7 +177,7 @@ processing the full 817,000 texts and inspecting the results for valid
 and noisy results. In the table below we display the totals for the
 organisation label and the accession label.
 
-The Organisation (ORG) label
+The Organisation (ORG) label.
 
 ``` r
 library(tidyverse)
@@ -316,7 +316,7 @@ revealed that accession numbers are commonly located in close proximity
 to SEQ ID numbers (that is, in the same sentence or paragraph).
 
 ``` bash
-# note that  names of the sets got mixed up here and requires correction
+# note that  names of the sets got switched here and requires correction
 prodigy ner.correct accession_refs_correct en_accession_ruler ./accession_sent_nchar2000.csv  --label ORG,ACCESSION,SEQ -U
 
 prodigy ner.correct accession_nchar_correct en_accession_ruler ./accession_refs.csv  --label ORG,ACCESSION,SEQ -U
@@ -370,8 +370,8 @@ Moving beyond examination of the scores we can once again test the data against 
 This code runs a function in R `get_entities()` by calling a python
 script in `inst/label_script.py` that writes the results to a csv file.
 Note that you must have a python environment containing the model
-attached to your RStudio environment (Set in Project Options or GLobal
-Options to set the path).
+attached to your RStudio environment (Set the path in Project Options or
+Global Options).
 
 ``` r
 large <- get_entities(path = "assets/accession_ref_all_id.csv", model = "en_accession_ruler", dest = "results/accession_ref_all_id_results.csv")

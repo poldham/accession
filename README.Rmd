@@ -51,7 +51,7 @@ In Step 1 a set of 957 annotations were developed in Prodigy using the English m
 prodigy data-to-spaCy corpus --ner accession_usptorefs,accession_sent_nchar2000rerun --eval-split 0.3 
 
 # set up the corpus in the project (writes to train and dev for eval)
-python -m spaCy train corpus/config.cfg --paths.train corpus/train.spaCy --paths.dev corpus/dev.spaCy
+python -m spacy train corpus/config.cfg --paths.train corpus/train.spaCy --paths.dev corpus/dev.spaCy
 
 ```
 
@@ -60,10 +60,10 @@ python -m spaCy train corpus/config.cfg --paths.train corpus/train.spaCy --paths
 For the training a spaCy project was created from an existing template containing commands for training, adding an entity ruler and packaging a model as a pip installable.
 
 ```{bash, train, eval=FALSE}
-spaCy project run train
+spacy project run train
 ```
 
-The performance of the model over ten iterations is displayed in Figure \@ref(fig:step1) below. The scores of interest are recall ENTS_R and precision ENTS_P and the F score (ENTS_F) consisting of the harmonic mean between precision and recall to evaluate the overall performance of the model. 
+The performance of the model over ten iterations is displayed in Figure \@ref(fig:step1) below. The scores of interest are recall `ENTS_R` and precision `ENTS_P` and the F score (`ENTS_F`) consisting of the harmonic mean between precision and recall to evaluate the overall performance of the model. 
 
 ```{r step1, echo=FALSE, fig.align='center', fig.cap="Evaluating a starter model"}
 knitr::include_graphics("images/step1_run_train.png")
@@ -72,7 +72,7 @@ The F score score of 90.84 suggest that we have a good model. However, note that
 
 Evaluation of the performance of the starter model was carried out by processing the full 817,000 texts and inspecting the results for valid and noisy results. In the table below we display the totals for the organisation label and the accession label.
 
-The Organisation (ORG) label
+The Organisation (ORG) label.
 
 ```{r org1, message=FALSE, fig.cap="Assessing The ORG Label"}
 library(tidyverse)
@@ -114,7 +114,7 @@ In the second step we focused on correcting the annotations, adding the SEQ labe
 The SEQ label was added at this stage because Step 1 annotations revealed that accession numbers are commonly located in close proximity to SEQ ID numbers (that is, in the same sentence or paragraph). 
 
 ```{bash, step2, eval=FALSE}
-# note that  names of the sets got mixed up here and requires correction
+# note that  names of the sets got switched here and requires correction
 prodigy ner.correct accession_refs_correct en_accession_ruler ./accession_sent_nchar2000.csv  --label ORG,ACCESSION,SEQ -U
 
 prodigy ner.correct accession_nchar_correct en_accession_ruler ./accession_refs.csv  --label ORG,ACCESSION,SEQ -U
@@ -145,7 +145,7 @@ The difficulties experienced by the SEQ label probably reflect the variations fr
 
 Moving beyond examination of the scores we can once again test the data against our wider set. --->
 
-This code runs a function in R `get_entities()` by calling a python script in `inst/label_script.py` that writes the results to a csv file. Note that you must have a python environment containing the model attached to your RStudio environment (Set in Project Options or GLobal Options to set the path).
+This code runs a function in R `get_entities()` by calling a python script in `inst/label_script.py` that writes the results to a csv file. Note that you must have a python environment containing the model attached to your RStudio environment (Set the path in Project Options or Global Options).
 
 ```{r, large, eval=FALSE, echo=TRUE}
 large <- get_entities(path = "assets/accession_ref_all_id.csv", model = "en_accession_ruler", dest = "results/accession_ref_all_id_results.csv")
