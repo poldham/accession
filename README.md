@@ -101,14 +101,14 @@ model). To overcome this problem we searched the USPTO references table
 for all mentions of the word accession, or the organisation names and
 their full name variants and acronyms (EMBL, EBI, ENA, NCBI, DDBJ etc)
 to produce a raw set of 841,728 example texts from 14,167 granted US
-patents (see `assets/accession_refs_id.csv`). In addition, using a
-separate dataset of worldwide patent data that is known to contain
+patents (see `assets/data/accession_ref_all_id.csv`). In addition, using
+a separate dataset of worldwide patent data that is known to contain
 sequences from the Lens patent database we identified a set of 348,076
 texts containing the same search terms
-(assets/accession_sent_nchar2000.csv) from xxx documents \[note: could
-usefully exclude shared docs or exact match texts\]. The aim of these
-datasets is to use samples of the texts for annotation and testing of
-models.
+(assets/data/accession_sent_nchar2000.csv) from xxx documents \[note:
+could usefully exclude shared docs or exact match texts\]. The aim of
+these datasets is to use samples of the texts for annotation and testing
+of models.
 
 An important strength of spaCy and the Prodigy annotation tool is that
 it is possible to combine a machine learning model with a dictionary or
@@ -136,12 +136,15 @@ identifiers in patent texts.
 > “ACCESSION”, “pattern”: \[{“text”:{“REGEX”:
 > “SAM(E\|D\|N)\[A-Z\]?\[0-9\]+”}}\]}
 
+## The Starter Model
+
 In Step 1 a set of 957 annotations were developed in Prodigy using the
 English medium model and the patterns set to pre-highlight matches.
 These annotations were exported from Prodigy into spaCy format as a
 corpus of train (70%) and eval (30%).
 
 ``` bash
+
 # transfer the annotations to spaCy format splitting into train and eval 
 prodigy data-to-spaCy corpus --ner accession_usptorefs,accession_sent_nchar2000rerun --eval-split 0.3 
 
@@ -152,8 +155,9 @@ python -m spacy train corpus/config.cfg --paths.train corpus/train.spaCy --paths
 <!---# (spaCyr) pauloldham@PAULs-iMac accession % python -m spaCy train corpus/config.cfg --paths.train corpus/train.spaCy --paths.dev corpus/dev.spaCy--->
 
 For the training a spaCy project was created from an existing template
-containing commands for training, adding an entity ruler and packaging a
-model as a pip installable.
+containing commands for training, adding an entity ruler (thesaurus or
+dictionary of terms to match) and packaging a model as a pip
+installable.
 
 ``` bash
 spacy project run train
@@ -166,6 +170,7 @@ mean between precision and recall to evaluate the overall performance of
 the model.
 
 <img src="images/step1_run_train.png" title="Evaluating a starter model" alt="Evaluating a starter model" style="display: block; margin: auto;" />
+
 The F score score of 90.84 suggest that we have a good model. However,
 note that the training and evaluation sets are relatively small compared
 with the scale of real world data. Nevertheless, This illustrates that
@@ -181,7 +186,7 @@ The Organisation (ORG) label.
 
 ``` r
 library(tidyverse)
-accession_ref_all_id_results <- read_csv("results/accession_ref_all_id_results.csv") 
+accession_ref_all_id_results <- read_csv("results/en_entity_ruler0/accession_ref_all_id_results.csv", show_col_types = FALSE) 
 
 accession_ref_all_id_results %>% 
   filter(entity_label == "ORG") %>% 
@@ -315,11 +320,13 @@ The SEQ label was added at this stage because Step 1 annotations
 revealed that accession numbers are commonly located in close proximity
 to SEQ ID numbers (that is, in the same sentence or paragraph).
 
-``` bash
-# note that  names of the sets got switched here and requires correction
-prodigy ner.correct accession_refs_correct en_accession_ruler ./accession_sent_nchar2000.csv  --label ORG,ACCESSION,SEQ -U
+<!---# note that  names of the sets got switched here and requires correction. For set 2 the data was reannotated with the correct names and so not a critical issue--->
 
-prodigy ner.correct accession_nchar_correct en_accession_ruler ./accession_refs.csv  --label ORG,ACCESSION,SEQ -U
+``` bash
+
+prodigy ner.correct accession_refs_correct en_accession_ruler ./assets/data/accession_sent_nchar2000.csv  --label ORG,ACCESSION,SEQ -U
+
+prodigy ner.correct accession_nchar_correct en_accession_ruler ./assets/data/accession_refs.csv  --label ORG,ACCESSION,SEQ -U
 ```
 
 The corrected annotation sets are then exported to spaCy format as the
@@ -374,7 +381,12 @@ attached to your RStudio environment (Set the path in Project Options or
 Global Options).
 
 ``` r
-large <- get_entities(path = "assets/accession_ref_all_id.csv", model = "en_accession_ruler", dest = "results/accession_ref_all_id_results.csv")
+library(reticulate)
+#large <- get_entities(path = "assets/accession_ref_all_id.csv", model = "en_accession_ruler", dest = "results/accession_ref_all_id_results.csv")
+
+source("R/get_entities.R")
+# 0.0.1 version
+large_updated <- get_entities(path = "assets/accession_ref_all_id.csv", model = "en_accession_ruler", dest = "results/accession_all_results_updated.csv")
 ```
 
 Read the dataset back in and count up the results for the labels.
@@ -382,21 +394,22 @@ Read the dataset back in and count up the results for the labels.
 ``` r
 #large <- read_csv("results/accession_ref_all_id_results.csv")
 
-read_csv("data/large_count.csv") %>% 
+read_csv("data/large_count.csv", show_col_types = FALSE) %>% 
+  head() %>% 
   knitr::kable()
 ```
 
 | entity_label |      n |
 |:-------------|-------:|
-| ACCESSION    |  91382 |
-| ORG          | 125245 |
-| SEQ          |   1468 |
+| ACCESSION    |  98540 |
+| ORG          | 239425 |
+| SEQ          |   3169 |
 
 Inspect the ORG label.
 
 ``` r
-read_csv("data/large_org.csv") %>% 
-  head(., 30) %>% 
+read_csv("data/large_org.csv", show_col_types = FALSE) %>% 
+  head(., 10) %>% 
   knitr::kable()
 ```
 
@@ -405,126 +418,318 @@ read_csv("data/large_org.csv") %>%
 | GenBank                                       | 21376 |
 | NCBI                                          | 11496 |
 | EBI                                           |  7545 |
+| Chemical Abstracts Service                    |  5907 |
 | EMBL                                          |  5784 |
+| STN                                           |  5715 |
 | Genbank                                       |  5580 |
 | National Center for Biotechnology Information |  4905 |
-| American Chemical Society                     |  3417 |
-| UniProt                                       |  2692 |
-| Journal of Biological Chemistry               |  2204 |
-| National Institutes of Health                 |  2112 |
-| ACM                                           |  1884 |
-| UNIPROT                                       |  1626 |
-| American Physiological Society                |  1050 |
-| American Heart Association                    |   937 |
-| ATCC                                          |   716 |
-| Uniprot                                       |   708 |
-| American Society of Nephrology                |   498 |
-| American Heart Association, Inc.              |   446 |
-| GNPD                                          |   443 |
-| American Institute of Physics                 |   425 |
-| Semiconductor Chip Assembly                   |   407 |
-| Swiss-Prot                                    |   399 |
-| American Journal of Physiology                |   381 |
-| IEEE Computer Society                         |   338 |
-| ACS Nano                                      |   336 |
-| American Journal of Kidney Diseases           |   329 |
-| Senate                                        |   287 |
-| USENIX                                        |   285 |
-| RTC Industries, Inc.                          |   276 |
-| American Society for Microbiology             |   268 |
+| American Chemical Society                     |  4894 |
+| PubChem                                       |  2741 |
 
 Inspect the ACCESSION label.
 
 ``` r
-read_csv("data/large_accesion.csv") %>% 
-  head(., 30) %>% 
+read_csv("data/large_accesion.csv", show_col_types = FALSE) %>% 
+  head(., 10) %>% 
   knitr::kable()
 ```
 
-| entity_text                                 |   n |
-|:--------------------------------------------|----:|
-| PCT                                         | 497 |
-| 03C 3137                                    | 393 |
-| AB 2011                                     | 349 |
-| 4                                           | 250 |
-| LG Optimus                                  | 249 |
-| Angewandte                                  | 239 |
-| BACE1                                       | 169 |
-| ACM                                         | 163 |
-| www.clinicaltrials.gov/ct2/show/NCT01390831 | 154 |
-| Angove                                      | 153 |
-| R1524                                       | 153 |
-| Dermatol                                    | 151 |
-| Medtronic                                   | 131 |
-| R1517                                       | 129 |
-| P15647                                      | 124 |
-| J05199                                      | 122 |
-| 100300                                      | 117 |
-| R1599                                       | 115 |
-| EMC Corporation                             | 113 |
-| 4th                                         | 108 |
-| ASME                                        | 108 |
-| LG KE850                                    | 108 |
-| 5th                                         | 107 |
-| 11β                                         | 100 |
-| 11669                                       |  99 |
-| 7356                                        |  98 |
-| 8220;Semiconductor Chip Assembly            |  98 |
-| Samsung F700                                |  98 |
-| AAB10482                                    |  94 |
-| F1209                                       |  92 |
+| entity_text        |   n |
+|:-------------------|----:|
+| 11β                | 196 |
+| 01141006003        | 169 |
+| P15647             | 124 |
+| 100300             | 123 |
+| Chemical Abstracts | 123 |
+| J05199             | 122 |
+| LG KE850 Prada     | 119 |
+| 11669              |  99 |
+| 30(b)(1            |  98 |
+| 7356               |  98 |
 
 Inspect the SEQ label.
 
 ``` r
-read_csv("data/large_accesion.csv") %>% 
-  head(., 30) %>% 
+read_csv("data/large_seq.csv", show_col_types = FALSE) %>% 
+  head(., 10) %>% 
   knitr::kable()
-#> Rows: 31435 Columns: 2
-#> ── Column specification ────────────────────────────────────────────────────────
-#> Delimiter: ","
-#> chr (1): entity_text
-#> dbl (1): n
-#> 
-#> ℹ Use `spec()` to retrieve the full column specification for this data.
-#> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 ```
 
-| entity_text                                 |   n |
-|:--------------------------------------------|----:|
-| PCT                                         | 497 |
-| 03C 3137                                    | 393 |
-| AB 2011                                     | 349 |
-| 4                                           | 250 |
-| LG Optimus                                  | 249 |
-| Angewandte                                  | 239 |
-| BACE1                                       | 169 |
-| ACM                                         | 163 |
-| www.clinicaltrials.gov/ct2/show/NCT01390831 | 154 |
-| Angove                                      | 153 |
-| R1524                                       | 153 |
-| Dermatol                                    | 151 |
-| Medtronic                                   | 131 |
-| R1517                                       | 129 |
-| P15647                                      | 124 |
-| J05199                                      | 122 |
-| 100300                                      | 117 |
-| R1599                                       | 115 |
-| EMC Corporation                             | 113 |
-| 4th                                         | 108 |
-| ASME                                        | 108 |
-| LG KE850                                    | 108 |
-| 5th                                         | 107 |
-| 11β                                         | 100 |
-| 11669                                       |  99 |
-| 7356                                        |  98 |
-| 8220;Semiconductor Chip Assembly            |  98 |
-| Samsung F700                                |  98 |
-| AAB10482                                    |  94 |
-| F1209                                       |  92 |
+| entity_text              |   n |
+|:-------------------------|----:|
+| SEQ ID                   | 448 |
+| RTC Industries, Inc.     | 279 |
+| RTC Industries, Inc . v. | 256 |
+| SEQ ID No. 1             |  96 |
+| SEQ ID No                |  92 |
+| SEQ ID No. 2             |  68 |
+| SEQ ID 1                 |  53 |
+| Samsung Galaxy Note7     |  46 |
+| SEQ ID No. 6             |  46 |
+| SEQ ID No. 64            |  42 |
 
-## Step 3: Identify Noise, Make Corrections and Repackage
+## Step 3: Correct Annotations and Create a New Model
 
-TBD
+In this step the trained model is used to correct annotations from the
+accession_sent_nchar2000.csv set to create a new annotations set
+`accession_refs_correct2`. Because correction of annotations is faster
+than creating them manually more annotations were created (2020 in
+total).
+
+``` bash
+prodigy ner.correct accession_sent_correct2 ./training/model-best ./assets/data/accession_sent_nchar2000.csv  --label ORG,ACCESSION,SEQ
+```
+
+The same process was repeated for the second dataset (non patent
+literature references mentioning accessions). A total of 600 reference
+texts were corrected.
+
+Observation: The npl references contain a wider range of accession
+numbers from different sources (CA Plus, STN, Derwent etc) and there is
+a question about whether this improves or confuses the model.
+
+``` bash
+prodigy ner.correct accession_refs_correct2 ./training/model-best ./assets/data/accession_refs.csv  --label ORG,ACCESSION,SEQ
+```
+
+The combined annotations are exported from prodigy to spacy as a new
+corpus for a new model on a 70 to 30 split between train and evaluation.
+Note that it is clear that some of the raw sentences are duplicated
+(handled automatically by spacy) and the sets should be adjusted to
+unique sentences.
+
+``` bash
+prodigy data-to-spacy corpus --ner accession_sent_correct2,accession_refs_correct2 --eval-split 0.3 
+```
+
+We now created version 2 of the model and will overwrite the temporary
+model created above for the ner.correct (the model-best).
+
+``` bash
+spacy project run train
+```
+
+The figure below displays the results
+
+![](images/accession%20-%20master%20-%20RStudio%202022-09-02%2013-57-31.png)<!-- -->
+
+Note that compared with our started model the recall has improved
+significantly from 88 to 94% and we now have a fairly even balance
+between precision and recall represented in an F score of 94.12 on the
+585 evaluation examples.
+
+We now add the entity ruler to model-best
+
+``` bash
+spacy project run entity_ruler    
+```
+
+Running command: /Users/pauloldham/opt/anaconda3/envs/spacyr/bin/python
+scripts/entity_ruler.py \[(‘Genbank’, ‘ORG’), (‘ncbi’, ‘ORG’), (‘ddbj’,
+‘ORG’), (‘embl’, ‘ORG’), (‘ebi’, ‘ORG’), (‘ena’, ‘ORG’), (‘SEQ ID NO:
+1’, ‘SEQ’)\]
+
+We now evaluate the model with the ruler attached:
+
+``` bash
+spacy project run evaluate_ruler
+```
+
+![](images/accession%20-%20master%20-%20RStudio%202022-09-02%2014-00-15.png)<!-- -->
+
+This is looking pretty good on all labels although it is a little
+worrtying that the precision and recall scores are lowest for the
+accession label that is our main target here.
+
+We now want to package up the model with the ruler as a pip installable.
+
+``` bash
+spacy project run ruler  
+```
+
+This will create a pip installable packages with 0.0.2 in
+`packages/en_accession_ruler-0.0.2/dist/en_accession_ruler-0.0.2.tar.gz`
+
+TO TRY: train_curve to evaluate if adding more training data improves
+the model. Another option is to try train with only the sentences
+leaving out the refs and see if the refs are improving scores or adding
+noise?
+
+Install the package in an environment (attached to RStudio)
+
+``` bash
+pip install packages/en_accession_ruler-0.0.2/dist/en_accession_ruler-0.0.2.tar.gz
+```
+
+### Extract the Entities
+
+Extract entities from texts. This assumes that the model is installed in
+an environment linked to RStudio (Global or Project Options). The folder
+`inst/` contains a python script that calls spacy based on the model
+name provided. The results get written to `dest = x`
+
+Load the function
+
+``` r
+library(reticulate)
+get_entities <- function(path = NULL, model = NULL, dest = NULL) {
+  source_python("inst/label_script.py")
+  entities_df = text_labels(path,model,dest)
+}
+```
+
+Iterate over the references
+
+``` r
+results_refs <- get_entities(path = "assets/data/accession_ref_all_id.csv", 
+                             model = "en_accession_ruler", 
+                             dest = "results/accession_ref_model02.csv")
+
+write_csv(results_refs, "results/results_regs02.csv")
+```
+
+Do the same for the sentences (having renamed sent_id to id)
+
+``` r
+results_sent <- get_entities(path = "assets/data/accession_sent.csv", 
+                             model = "en_accession_ruler", 
+                             dest = "results/accession_sent_results.csv") 
+
+write_csv(results_sent, "results/results_sent02.csv")
+```
+
+## Data Summary
+
+### 1. Sentences dataset
+
+Take a look
+
+|  id | entity_id | entity_text                                   | entity_label | entity_start | entity_end | entity_id_no |
+|----:|:----------|:----------------------------------------------|:-------------|-------------:|-----------:|-------------:|
+| 807 | ncbi      | GenBank                                       | ORG          |          187 |        194 | 4.160624e+18 |
+| 807 | NA        | Brookhaven Protein Data Bank                  | ORG          |          264 |        292 | 0.000000e+00 |
+| 807 | embl      | EMBL                                          | ORG          |          363 |        367 | 1.722845e+18 |
+| 807 | ddbj      | DDBJ                                          | ORG          |          373 |        377 | 1.672235e+19 |
+| 808 | ncbi      | National Center for Biotechnology Information | ORG          |          162 |        207 | 4.160624e+18 |
+| 808 | ncbi      | NCBI                                          | ORG          |          209 |        213 | 4.160624e+18 |
+| 811 | ncbi      | NCBI                                          | ORG          |           50 |         54 | 4.160624e+18 |
+| 831 | ncbi      | Genbank                                       | ORG          |          179 |        186 | 4.160624e+18 |
+| 847 | atcc      | ATCC                                          | ORG          |           76 |         80 | 8.801339e+18 |
+| 847 | NA        | American Type Culture Collection              | ORG          |           82 |        114 | 0.000000e+00 |
+| 847 | atcc      | ATCC                                          | ORG          |          193 |        197 | 8.801339e+18 |
+| 847 | NA        | 97366                                         | ACCESSION    |          198 |        203 | 0.000000e+00 |
+| 392 | NA        | L06633                                        | ACCESSION    |           45 |         51 | 0.000000e+00 |
+| 392 | ncbi      | NCBI                                          | ORG          |           89 |         93 | 4.160624e+18 |
+| 392 | ncbi      | GenBank                                       | ORG          |           94 |        101 | 4.160624e+18 |
+| 393 | ncbi      | Genbank                                       | ORG          |           14 |         21 | 4.160624e+18 |
+| 400 | NA        | CRL 6281                                      | ACCESSION    |            0 |          8 | 0.000000e+00 |
+| 400 | NA        | American Type Culture Collection              | ORG          |           48 |         80 | 0.000000e+00 |
+| 400 | NA        | CRL 10314                                     | ACCESSION    |          104 |        113 | 0.000000e+00 |
+| 400 | atcc      | ATCC                                          | ORG          |          121 |        125 | 8.801339e+18 |
+
+Narrow to accessions
+
+|   id | entity_id | entity_text | entity_label | entity_start | entity_end | entity_id_no |
+|-----:|:----------|:------------|:-------------|-------------:|-----------:|-------------:|
+|  847 | NA        | 97366       | ACCESSION    |          198 |        203 |            0 |
+|  392 | NA        | L06633      | ACCESSION    |           45 |         51 |            0 |
+|  400 | NA        | CRL 6281    | ACCESSION    |            0 |          8 |            0 |
+|  400 | NA        | CRL 10314   | ACCESSION    |          104 |        113 |            0 |
+|  110 | NA        | 22304       | ACCESSION    |          210 |        215 |            0 |
+|  247 | NA        | U22304      | ACCESSION    |            0 |          6 |            0 |
+|  426 | NA        | 22303       | ACCESSION    |          123 |        128 |            0 |
+|  498 | NA        | AJ277947    | ACCESSION    |          124 |        132 |            0 |
+|  268 | NA        | CRL 1711    | ACCESSION    |          145 |        153 |            0 |
+|  149 | NA        | Q99075      | ACCESSION    |            0 |          6 |            0 |
+|  150 | NA        | Q01580      | ACCESSION    |            0 |          6 |            0 |
+|  151 | NA        | Q06186      | ACCESSION    |            0 |          6 |            0 |
+|  155 | NA        | Q99075      | ACCESSION    |            0 |          6 |            0 |
+|  156 | NA        | Q01580      | ACCESSION    |            0 |          6 |            0 |
+|  157 | NA        | Q06186      | ACCESSION    |            0 |          6 |            0 |
+|  161 | NA        | P15514      | ACCESSION    |            0 |          6 |            0 |
+|  162 | NA        | P01135      | ACCESSION    |            0 |          6 |            0 |
+|  163 | NA        | P35070      | ACCESSION    |            0 |          6 |            0 |
+|  147 | NA        | O14964      | ACCESSION    |          203 |        209 |            0 |
+| 1410 | NA        | AC005287    | ACCESSION    |          159 |        167 |            0 |
+
+How many accessions appear in total
+
+``` r
+results_sent %>% filter(entity_label == "ACCESSION") %>% nrow()
+#> [1] 340958
+```
+
+How many of the accession numbers are unique
+
+``` r
+results_sent %>% filter(entity_label == "ACCESSION") %>% count(entity_text, sort = TRUE) %>% nrow()
+#> [1] 172330
+```
+
+### 2. References set
+
+Take a look
+
+| id       | entity_id | entity_text                                         | entity_label | entity_start | entity_end | entity_id_no |
+|:---------|:----------|:----------------------------------------------------|:-------------|-------------:|-----------:|-------------:|
+| D581385  | NA        | D736                                                | ACCESSION    |            5 |          9 | 0.000000e+00 |
+| 10492842 | NA        | Journal of Clinical Investigation                   | ORG          |          116 |        149 | 0.000000e+00 |
+| 11180808 | NA        | 13/300,235                                          | ACCESSION    |           15 |         25 | 0.000000e+00 |
+| 8349375  | NA        | Federation of European Biochemical Societies        | ORG          |          139 |        183 | 0.000000e+00 |
+| 10061890 | NA        | Assembly of Microarrays for Genome-Wide Measurement | ORG          |           27 |         78 | 0.000000e+00 |
+| 9515999  | NA        | SSH Key Management Guide                            | ORG          |           27 |         51 | 0.000000e+00 |
+| 9515999  | NA        | Venafi, Inc.                                        | ORG          |           53 |         65 | 0.000000e+00 |
+| 7491532  | ncbi      | NCBI                                                | ORG          |            0 |          4 | 4.160624e+18 |
+| 7491532  | NA        | X02996                                              | ACCESSION    |           37 |         43 | 0.000000e+00 |
+| 7491532  | NA        | J01967                                              | ACCESSION    |           44 |         50 | 0.000000e+00 |
+| 7491532  | NA        | J01968                                              | ACCESSION    |           51 |         57 | 0.000000e+00 |
+| 7491532  | NA        | J01970                                              | ACCESSION    |           58 |         64 | 0.000000e+00 |
+| 7491532  | NA        | J01971                                              | ACCESSION    |           65 |         71 | 0.000000e+00 |
+| 7491532  | NA        | J01972                                              | ACCESSION    |           72 |         78 | 0.000000e+00 |
+| 7491532  | NA        | J01974                                              | ACCESSION    |           79 |         85 | 0.000000e+00 |
+| 7491532  | NA        | J01976                                              | ACCESSION    |           86 |         92 | 0.000000e+00 |
+| 7491532  | NA        | J01977                                              | ACCESSION    |           93 |         99 | 0.000000e+00 |
+| 7491532  | NA        | J01978                                              | ACCESSION    |          100 |        106 | 0.000000e+00 |
+| 7491532  | NA        | J01979                                              | ACCESSION    |          107 |        113 | 0.000000e+00 |
+| 7491532  | NA        | K00515                                              | ACCESSION    |          114 |        120 | 0.000000e+00 |
+
+Narrow to accessions
+
+| id       | entity_id | entity_text | entity_label | entity_start | entity_end | entity_id_no |
+|:---------|:----------|:------------|:-------------|-------------:|-----------:|-------------:|
+| D581385  | NA        | D736        | ACCESSION    |            5 |          9 |            0 |
+| 11180808 | NA        | 13/300,235  | ACCESSION    |           15 |         25 |            0 |
+| 7491532  | NA        | X02996      | ACCESSION    |           37 |         43 |            0 |
+| 7491532  | NA        | J01967      | ACCESSION    |           44 |         50 |            0 |
+| 7491532  | NA        | J01968      | ACCESSION    |           51 |         57 |            0 |
+| 7491532  | NA        | J01970      | ACCESSION    |           58 |         64 |            0 |
+| 7491532  | NA        | J01971      | ACCESSION    |           65 |         71 |            0 |
+| 7491532  | NA        | J01972      | ACCESSION    |           72 |         78 |            0 |
+| 7491532  | NA        | J01974      | ACCESSION    |           79 |         85 |            0 |
+| 7491532  | NA        | J01976      | ACCESSION    |           86 |         92 |            0 |
+| 7491532  | NA        | J01977      | ACCESSION    |           93 |         99 |            0 |
+| 7491532  | NA        | J01978      | ACCESSION    |          100 |        106 |            0 |
+| 7491532  | NA        | J01979      | ACCESSION    |          107 |        113 |            0 |
+| 7491532  | NA        | K00515      | ACCESSION    |          114 |        120 |            0 |
+| 7491532  | NA        | V00025      | ACCESSION    |          121 |        127 |            0 |
+| 7491532  | NA        | V00026      | ACCESSION    |          128 |        134 |            0 |
+| 7491532  | NA        | V00027      | ACCESSION    |          135 |        141 |            0 |
+| 7491532  | NA        | V00029      | ACCESSION    |          142 |        148 |            0 |
+| 8672839  | NA        | 12/550,595  | ACCESSION    |           15 |         25 |            0 |
+| 8048420  | NA        | ADX39143    | ACCESSION    |          121 |        129 |            0 |
+
+How many accessions appear in total
+
+``` r
+results_refs %>% filter(entity_label == "ACCESSION") %>% nrow()
+#> [1] 151698
+```
+
+How many of the accession numbers are unique
+
+``` r
+results_refs %>% filter(entity_label == "ACCESSION") %>% count(entity_text, sort = TRUE) %>% nrow()
+#> [1] 53061
+```
 
 [^1]: <https://ena-docs.readthedocs.io/en/latest/submit/general-guide/accessions.html>

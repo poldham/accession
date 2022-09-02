@@ -13,3 +13,7 @@ RnwWeave: knitr
 LaTeX: pdfLaTeX
 
 AutoAppendNewline: Yes
+
+PythonType: conda
+PythonVersion: 3.10.4
+PythonPath: ~/opt/anaconda3/envs/spacy34/bin/python3.10
